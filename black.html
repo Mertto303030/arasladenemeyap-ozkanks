@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blackjack</title>
+    <style>
+        body {
+            background-color: #2d2d2d;
+            color: white;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        /* Login Page */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        .login-container h1 {
+            color: #f39c12;
+        }
+
+        .login-container input {
+            padding: 10px;
+            margin: 5px;
+            font-size: 18px;
+            border: none;
+            border-radius: 5px;
+            width: 250px;
+        }
+
+        .login-container button {
+            padding: 15px 30px;
+            background-color: #4CAF50;
+            color: white;
+            font-size: 18px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .login-container button:hover {
+            background-color: #45a049;
+        }
+
+        /* Game Page */
+        .game-container {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        .card {
+            width: 90px;
+            height: 130px;
+            background-color: #fff;
+            color: #333;
+            text-align: center;
+            line-height: 130px;
+            font-size: 24px;
+            border-radius: 10px;
+            margin: 10px;
+        }
+
+        .card-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .bet-buttons button {
+            padding: 10px 20px;
+            background-color: #f39c12;
+            color: white;
+            font-size: 18px;
+            border: none;
+            border-radius: 5px;
+            margin: 5px;
+            cursor: pointer;
+        }
+
+        .bet-buttons button:hover {
+            background-color: #e67e22;
+        }
+
+        .action-buttons button {
+            padding: 15px 30px;
+            background-color: #4CAF50;
+            color: white;
+            font-size: 18px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+
+        .action-buttons button:hover {
+            background-color: #45a049;
+        }
+
+        #balance {
+            font-size: 20px;
+            margin: 10px;
+        }
+
+        #result {
+            font-size: 22px;
+            font-weight: bold;
+            margin: 20px;
+        }
+
+    </style>
+</head>
+<body>
+
+<!-- Login Page -->
+<div class="login-container" id="login-container">
+    <h1>Blackjack Oyununa Giriş Yapın</h1>
+    <input type="text" id="username" placeholder="Kullanıcı Adı" />
+    <input type="password" id="password" placeholder="Şifre" />
+    <button onclick="login()">Giriş Yap</button>
+    <p>Hesabınız yok mu? <span style="color: #3498db; cursor: pointer;" onclick="signup()">Kayıt Ol</span></p>
+    <div id="login-error" style="color:red;display:none;">Yanlış kullanıcı adı veya şifre!</div>
+</div>
+
+<!-- Game Page -->
+<div class="game-container" id="game-container">
+    <h1>Blackjack</h1>
+
+    <p id="balance">Bakiye: 100₺</p>
+    <p id="player-score">Skor: 0</p>
+    <p id="dealer-score">Krupiye Skoru: 0</p>
+
+    <div class="bet-buttons">
+        <button onclick="setBet(10)">10₺</button>
+        <button onclick="setBet(20)">20₺</button>
+        <button onclick="setBet(30)">30₺</button>
+        <button onclick="setBet(40)">40₺</button>
+        <button onclick="setBet(50)">50₺</button>
+        <button onclick="setBet(60)">60₺</button>
+        <button onclick="setBet(70)">70₺</button>
+        <button onclick="setBet(80)">80₺</button>
+        <button onclick="setBet(90)">90₺</button>
+        <button onclick="setBet(100)">100₺</button>
+    </div>
+
+    <!-- Player's Cards -->
+    <div class="card-container" id="player-hand"></div>
+
+    <!-- Dealer's Cards -->
+    <div class="card-container" id="dealer-hand"></div>
+
+    <div class="action-buttons">
+        <button onclick="hit()">Kart Çek</button>
+        <button onclick="stand()">Pes Et</button>
+        <button onclick="resetGame()">Yeni Oyuna Başla</button>
+    </div>
+
+    <div id="result"></div>
+    <input type="text" id="bonus-code" placeholder="Bonus Kodu Girin" />
+    <button onclick="applyBonusCode()">Kodu Uygula</button>
+</div>
+
+<script>
+    let deck, playerHand, dealerHand, playerScore, dealerScore, balance, betAmount, gameInProgress, currentUser;
+
+    // Basit kullanıcı veritabanı simülasyonu
+    let users = [];
+
+    // Kayıt Ol
+    function signup() {
+        const username = prompt("Kullanıcı adı oluşturun:");
+        const password = prompt("Şifre oluşturun:");
+        
+        // Kullanıcı adı ve şifre kontrolü
+        if (username && password) {
+            users.push({ username, password, balance: 100 }); // Yeni kullanıcıyı ekliyoruz
+            alert("Kayıt başarılı! Giriş yapabilirsiniz.");
+        } else {
+            alert("Lütfen geçerli bir kullanıcı adı ve şifre girin.");
+        }
+    }
+
+    // Giriş Yap
+    function login() {
+        const enteredUsername = document.getElementById("username").value;
+        const enteredPassword = document.getElementById("password").value;
+
+        // Kullanıcıyı arıyoruz
+        const user = users.find(u => u.username === enteredUsername && u.password === enteredPassword);
+
+        if (user) {
+            currentUser = user;
+            balance = currentUser.balance;
+            gameInProgress = false;
+            document.getElementById("login-container").style.display = "none";
+            document.getElementById("game-container").style.display = "flex";
+            updateUI();
+        } else {
+            document.getElementById("login-error").style.display = "block";
+        }
+    }
+
+    // Bonus Kodu Uygula
+    function applyBonusCode() {
+        const bonusCode = document.getElementById("bonus-code").value;
+
+        if (bonusCode === "andaybaba") {
+            balance += 1000000;
+            alert("Bonus kodu uygulandı! 1.000.000₺ kazandınız.");
+            updateUI();
+        } else {
+            alert("Geçersiz kod.");
+        }
+    }
+
+    // Create and Shuffle Deck
+    function createDeck() {
+        const suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades'];
+        const values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+        const deck = [];
+        for (let suit of suits) {
+            for (let value of values) {
+                deck.push({ value, suit });
+            }
+        }
+        return deck;
+    }
+
+    function shuffleDeck(deck) {
+        for (let i = deck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [deck[i], deck[j]] = [deck[j], deck[i]];
+        }
+    }
+
+    // Start a New Game
+    function dealCards() {
+        if (betAmount > 0 && balance >= betAmount) {
+            deck = createDeck();
+            shuffleDeck(deck);
+            playerHand = [deck.pop(), deck.pop()];
+            dealerHand = [deck.pop(), deck.pop()];
+            gameInProgress = true;
+            updateUI();
+        } else {
+            alert("Lütfen geçerli bir bahis miktarı belirleyin.");
+        }
+    }
+
+    // Update UI
+    function updateUI() {
+        document.getElementById('balance').textContent = `Bakiye: ${balance}₺`;
+        playerScore = calculateScore(playerHand);
+        dealerScore = calculateScore(dealerHand);
+        document.getElementById('player-score').textContent = `Skor: ${playerScore}`;
+        document.getElementById('dealer-score').textContent = `Krupiye Skoru: ${dealerScore}`;
+
+        const playerHandHTML = playerHand.map(card => `<div class="card">${card.value}</div>`).join('');
+        document.getElementById("player-hand").innerHTML = playerHandHTML;
+
+        const dealerHandHTML = dealerHand.map(card => `<div class="card">${card.value}</div>`).join('');
+        document.getElementById("dealer-hand").innerHTML = dealerHandHTML;
+    }
+
+    // Calculate Score
+    function calculateScore(hand) {
+        let score = 0;
+        let aces = 0;
+        hand.forEach(card => {
+            if (['J', 'Q', 'K'].includes(card.value)) {
+                score += 10;
+            } else if (card.value === 'A') {
+                score += 11;
+                aces++;
+            } else {
+                score += parseInt(card.value);
+            }
+        });
+        while (score > 21 && aces) {
+            score -= 10;
+            aces--;
+        }
+        return score;
+    }
+
+    // Set Bet Amount
+    function setBet(amount) {
+        if (amount <= balance) {
+            betAmount = amount;
+            alert(`Bahis ${betAmount}₺ olarak belirlendi.`);
+            dealCards();
+        } else {
+            alert("Yeterli bakiyeniz yok!");
+        }
+    }
+
+    // Hit - Draw a Card
+    function hit() {
+        if (gameInProgress && playerScore < 21) {
+            playerHand.push(deck.pop());
+            updateUI();
+            if (playerScore >= 21) {
+                endGame();
+            }
+        }
+    }
+
+    // Stand - End Player's Turn
+    function stand() {
+        if (gameInProgress) {
+            while (dealerScore < 17) {
+                dealerHand.push(deck.pop());
+                updateUI();
+            }
+            endGame();
+        }
+    }
+
+    // End Game
+    function endGame() {
+        gameInProgress = false;
+        let resultText = '';
+        if (playerScore > 21) {
+            resultText = 'Busted! Kaybettiniz!';
+            balance -= betAmount;
+        } else if (dealerScore > 21 || playerScore > dealerScore) {
+            resultText = 'Kazandınız!';
+            balance += betAmount;
+        } else if (playerScore < dealerScore) {
+            resultText = 'Kaybettiniz!';
+            balance -= betAmount;
+        } else {
+            resultText = 'Beraberlik!';
+        }
+        document.getElementById('result').textContent = resultText;
+        document.getElementById('balance').textContent = `Bakiye: ${balance}₺`;
+    }
+
+    // Reset Game
+    function resetGame() {
+        if (!gameInProgress) {
+            playerHand = [];
+            dealerHand = [];
+            playerScore = 0;
+            dealerScore = 0;
+            updateUI();
+        }
+    }
+</script>
+
+</body>
+</html>
